@@ -1,0 +1,1 @@
+- [Compile vs Retrieve](./compile-vs-retrieve.md) — Synthesis comparing precompiled knowledge packs with live retrieval over the bundle.

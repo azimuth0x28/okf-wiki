@@ -1,0 +1,3 @@
+- [OKF Bundle](./okf-bundle.md) — A directory of markdown pages that forms a portable, distributable unit of knowledge.
+- [Trust Lifecycle](./trust-lifecycle.md) — How evidence of trust accumulates and decays across the draft, stable, and deprecated states.
+- [Legacy Note](./legacy-note.md) — A note carried over from an early bundle version that still uses the v0.1 timestamp field.

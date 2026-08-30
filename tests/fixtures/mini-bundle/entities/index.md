@@ -1,0 +1,1 @@
+- [Google Cloud Platform](./google-cloud-platform.md) — Entity page for the cloud platform that hosts the OKF knowledge catalog.

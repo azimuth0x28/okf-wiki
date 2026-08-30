@@ -1,0 +1,1 @@
+- [Delta Ingest](./delta-ingest.md) — Core skill that ingests only the delta between the manifest ledger and the current bundle state.

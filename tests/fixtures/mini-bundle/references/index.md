@@ -1,0 +1,1 @@
+- [OKF Specification](./okf-spec.md) — Reference to the upstream Open Knowledge Format v0.2 specification.

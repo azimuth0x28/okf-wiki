@@ -1,0 +1,10 @@
+{
+  "okf_version": "0.2",
+  "entries": [
+    {
+      "source": "fixture",
+      "ingested_at": "2026-08-30T10:00:00Z",
+      "pages_produced": 8
+    }
+  ]
+}
