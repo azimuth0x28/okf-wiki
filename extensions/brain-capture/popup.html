@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main>
+    <h1>Brain Capture</h1>
+    <p id="status" class="status">Starting…</p>
+
+    <section id="host-mode" hidden>
+      <label for="bundle">Bundle</label>
+      <select id="bundle"></select>
+    </section>
+
+    <section id="folder-mode" hidden>
+      <button id="choose-folder" type="button">Choose _raw/ folder…</button>
+      <p id="folder-name" class="hint"></p>
+    </section>
+
+    <label for="note">Capture note (optional)</label>
+    <textarea id="note" rows="4" placeholder="Why does this page matter?"></textarea>
+
+    <button id="capture" type="button">Capture page</button>
+    <p id="result" class="hint"></p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
