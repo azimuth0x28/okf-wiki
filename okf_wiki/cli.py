@@ -653,6 +653,20 @@ def _cmd_code_understand(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_server(args: argparse.Namespace) -> int:
+    import os
+
+    import uvicorn
+
+    from okf_wiki.server import create_app
+
+    if args.port is not None:
+        os.environ["WIKI_PORT"] = str(args.port)
+    app = create_app()
+    uvicorn.run(app, host=args.host or "0.0.0.0", port=int(os.environ.get("WIKI_PORT", "8080")))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -807,6 +821,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     cdu.add_argument("--pretty", action="store_true", help="human-readable summary (default: JSON)")
 
+    srv = sub.add_parser(
+        "server",
+        help="run the HTTP/MCP memory server for a bundle (needs the 'server' extra)",
+    )
+    srv.add_argument("--host", default=None, help="bind host (default 0.0.0.0)")
+    srv.add_argument("--port", type=int, default=None, help="bind port (default WIKI_PORT or 8080)")
+
     return parser
 
 
@@ -838,6 +859,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "sessions-name": _cmd_sessions_name,
         "ast-extract": _cmd_ast_extract,
         "code-understand": _cmd_code_understand,
+        "server": _cmd_server,
     }
     handler = handlers.get(args.command)
     if handler is None:
