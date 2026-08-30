@@ -137,11 +137,18 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 # Write global config with quoted path (preserves spaces).
-cat > "$GLOBAL_CONFIG" <<EOF
+# Guard: NEVER overwrite an existing global config. The active `config`
+# may be a symlink into the user's real bundle profiles (see bundle-switch)
+# — writing through it would clobber their bundle. Create only when absent.
+if [ -e "$GLOBAL_CONFIG" ] || [ -L "$GLOBAL_CONFIG" ]; then
+  echo "ℹ️  Global config already exists at $GLOBAL_CONFIG — left untouched"
+else
+  cat > "$GLOBAL_CONFIG" <<EOF
 OKF_BUNDLE_PATH="$BUNDLE_PATH"
 OKF_WIKI_REPO="$SCRIPT_DIR"
 EOF
-echo "✅  Global config written to $GLOBAL_CONFIG"
+  echo "✅  Global config written to $GLOBAL_CONFIG"
+fi
 
 # ── Step 1c: Bootstrap symlinks ──────────────────────────────
 # AGENTS.md is the canonical agent entry point. CLAUDE.md, GEMINI.md, and
