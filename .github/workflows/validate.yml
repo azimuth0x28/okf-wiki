@@ -34,3 +34,8 @@ jobs:
             exit 1
           fi
           echo "Correctly rejected the non-conformant fixture."
+
+      - name: Frontmatter round-trip — mini-bundle pages must re-emit identically
+        run: |
+          bash scripts/roundtrip.sh tests/fixtures/mini-bundle
+        # Exit 0 expected — every page's frontmatter survives parse → re-emit → parse.
