@@ -58,7 +58,7 @@ after pulling new skills so every agent picks them up.
 | `wiki-digest` | Weekly/monthly summary of recent learning from `log.md`. |
 | `wiki-context-pack` | Compile bounded bundle context for another agent (no writes). |
 | `memory-bridge` | Cross-tool memory comparison grouped by `generated.by` actor. |
-| `session-brain` | Build a topic graph over raw agent sessions; sidecar at `~/.claude/session-brain/` (out of bundle). |
+| `session-brain` | Build a topic graph over raw agent sessions; sidecar at `~/.config/okf-wiki/session-graph/` (out of bundle). |
 | `session-search` | Find or load one specific session from the agent's history. |
 
 ### Maintenance
@@ -212,7 +212,7 @@ Three skills read agent session caches, and they are not interchangeable:
   another agent's history and pulls them into the bundle.
 - `session-brain` / `session-search` **retrieve** — build a topic graph over
   the raw sessions and find or load one. They write a sidecar at
-  `~/.claude/session-brain/` and never touch the bundle.
+  `~/.config/okf-wiki/session-graph/` and never touch the bundle.
 
 If the user wants knowledge preserved, ingest. If they want to find the
 session where something happened, retrieve.

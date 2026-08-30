@@ -54,7 +54,7 @@ A unified router plus six per-agent extractors. Each mines a specific agent's se
 
 ## Finding past sessions
 
-These two build a retrieval index over your raw agent sessions. They write a sidecar at `~/.claude/session-brain/` and never touch the bundle.
+These two build a retrieval index over your raw agent sessions. They write a sidecar at `~/.config/okf-wiki/session-graph/` and never touch the bundle.
 
 | Skill | What it does | Verdict | Slash command |
 |---|---|---|---|

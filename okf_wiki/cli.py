@@ -416,6 +416,186 @@ def _cmd_graph_query(args: argparse.Namespace) -> int:
     return 0
 
 
+_DEFAULT_SIDECAR = Path.home() / ".config" / "okf-wiki" / "session-graph"
+
+
+def _sidecar_dir(args: argparse.Namespace) -> Path:
+    return Path(getattr(args, "out", None) or _DEFAULT_SIDECAR).expanduser()
+
+
+def _cmd_sessions_build(args: argparse.Namespace) -> int:
+    from okf_wiki.session_graph import HALF_LIFE_DAYS_DEFAULT, build
+
+    claude_dir = Path(args.claude_dir).expanduser()
+    if not claude_dir.is_dir():
+        print(f"error: not a directory: {claude_dir}", file=sys.stderr)
+        return 1
+    skip = [s.strip() for s in (args.skip or "").split(",") if s.strip()]
+    summary = build(
+        claude_dir,
+        _sidecar_dir(args),
+        k=args.k,
+        min_sim=args.min_sim,
+        mutual=args.mutual,
+        half_life_days=args.half_life if args.half_life is not None else HALF_LIFE_DAYS_DEFAULT,
+        full=args.full,
+        skip=skip or None,
+        write_html=not args.no_html,
+    )
+    if args.json:
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+    stats = summary["stats"]
+    print(f"Sessions: {stats['sessions']} (full {stats['full']}, thin {stats['thin']})")
+    print(f"Edges: {stats['edges']}  Clusters: {stats['clusters']}  "
+          f"Unclustered: {stats['unclustered']}")
+    print(f"Named: {summary['clusters'].__len__() - summary['unnamed']}/{summary['clusters'].__len__()}"
+          if summary["clusters"] else "Clusters: 0")
+    print(f"Sidecar: {summary['out_dir']}")
+    return 0
+
+
+def _cmd_sessions_query(args: argparse.Namespace) -> int:
+    from okf_wiki.session_query import query
+
+    question = " ".join(args.question)
+    out_dir = _sidecar_dir(args)
+    try:
+        result = query(
+            out_dir,
+            question,
+            top_n=args.top,
+            project=args.project,
+            cluster=args.cluster,
+            since=args.since,
+        )
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    results = result.get("candidates") or []
+    if not results:
+        print("No matching sessions.")
+        return 1
+    print(f"Question: {question}  (of {result.get('total_ranked', len(results))} ranked sessions)")
+    for r in results:
+        title = r.get("title") or r.get("id", "?")
+        sid = r.get("session_id") or r.get("id", "?")
+        print(f"  [{sid}] {title}")
+        print(f"      project={r.get('project', '?')}  score={r.get('score', 0):.3f}  "
+              f"loadable={r.get('loadable', '?')}")
+        why = r.get("why")
+        if isinstance(why, str) and why:
+            print(f"      {why}")
+        elif isinstance(why, list):
+            for line in why[:2]:
+                print(f"      {line}")
+    should = result.get("should_load") or []
+    if should:
+        print(f"Load first: {', '.join(should[:3])}")
+    return 0
+
+
+def _cmd_sessions_show(args: argparse.Namespace) -> int:
+    from okf_wiki.session_query import show
+
+    try:
+        result = show(_sidecar_dir(args), args.session_id, neighbors=args.neighbors)
+    except (FileNotFoundError, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.pretty:
+        session = result.get("session") or {}
+        title = session.get("title") or session.get("id", "?")
+        print(f"Session: {session.get('id', '?')}")
+        print(f"  title:   {title}")
+        print(f"  project: {session.get('project', '?')}  tier={session.get('tier', '?')}  "
+              f"end={session.get('end_ts', '?')}")
+        cluster = result.get("cluster")
+        if cluster:
+            print(f"  cluster: [{cluster['id']}] {cluster.get('name') or cluster.get('label')}  "
+                  f"size={cluster.get('size')}")
+        else:
+            print("  cluster: none")
+        neighbors = result.get("neighbors") or []
+        if neighbors:
+            print("  neighbors:")
+            for n in neighbors:
+                print(f"    [{n['session_id']}] {n.get('title', '')[:70]}  "
+                      f"weight={n.get('weight', 0)}  shared={n.get('shared')}")
+        load = result.get("load_command") or ""
+        if load:
+            print(f"  load:    {load}")
+        return 0
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _cmd_sessions_clusters(args: argparse.Namespace) -> int:
+    from okf_wiki.session_graph import load_graph
+
+    try:
+        _graph, clusters_doc = load_graph(_sidecar_dir(args))
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    clusters = clusters_doc.get("clusters") or []
+    if args.unnamed:
+        clusters = [c for c in clusters if not c.get("name")]
+    if args.json:
+        print(json.dumps({"clusters": clusters}, ensure_ascii=False, indent=2))
+        return 0
+    if not clusters:
+        print("No clusters to show.")
+        return 1
+    print(f"Clusters: {len(clusters)}")
+    for c in clusters:
+        name = c.get("name") or c.get("label") or f"cluster-{c.get('id')}"
+        print(f"  [{c.get('id')}] {name}  size={c.get('size')}  "
+              f"momentum={c.get('momentum', 0):.2f}  dormant={c.get('dormant')}")
+        # top_terms entries are (term, weight) pairs — weight is display noise here
+        terms = ", ".join(t[0] if isinstance(t, (list, tuple)) else t
+                          for t in (c.get("top_terms") or [])[:6])
+        if terms:
+            print(f"      terms: {terms}")
+    return 0
+
+
+def _cmd_sessions_name(args: argparse.Namespace) -> int:
+    from okf_wiki.session_graph import set_cluster_names
+
+    updates: List[dict] = []
+    if args.from_file:
+        if args.from_file == "-":
+            raw = sys.stdin.read()
+        else:
+            raw = Path(args.from_file).read_text(encoding="utf-8")
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            print(f"error: invalid JSON: {exc}", file=sys.stderr)
+            return 1
+        if not isinstance(parsed, list):
+            print("error: expected a JSON array of {id,name,summary} objects", file=sys.stderr)
+            return 1
+        updates = parsed
+    elif args.id and args.name:
+        updates = [{"id": args.id, "name": args.name, "summary": args.summary}]
+    else:
+        print("error: provide --from FILE (or '-' for stdin) or --id/--name",
+              file=sys.stderr)
+        return 1
+    try:
+        result = set_cluster_names(_sidecar_dir(args), updates)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Named {result['named']} of {result['clusters']} clusters")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -489,6 +669,48 @@ def build_parser() -> argparse.ArgumentParser:
     p_gq.add_argument("--out", default=None, help="path to an existing graph.json (default <bundle>/_readouts/graph/graph.json)")
     p_gq.add_argument("tokens", nargs="+", help="tokens AND-matched on label/type/tags/description")
 
+    default_sidecar = str(Path.home() / ".config" / "okf-wiki" / "session-graph")
+
+    p_sb = sub.add_parser("sessions-build", help="build the session topic graph sidecar")
+    p_sb.add_argument("--claude-dir", default="~/.claude", help="agent history dir (default ~/.claude)")
+    p_sb.add_argument("--out", default=default_sidecar, help="sidecar dir (default ~/.config/okf-wiki/session-graph)")
+    p_sb.add_argument("--full", action="store_true", help="ignore caches, full rebuild")
+    p_sb.add_argument("--mutual", action="store_true", help="keep only mutual-kNN edges")
+    p_sb.add_argument("--half-life", type=float, default=None, help="recency half-life in days")
+    p_sb.add_argument("--min-sim", type=float, default=0.08, help="edge similarity floor")
+    p_sb.add_argument("--k", type=int, default=8, help="neighbors per node")
+    p_sb.add_argument("--skip", help="comma-separated substrings to skip")
+    p_sb.add_argument("--no-html", action="store_true", help="skip graph.html rendering")
+    p_sb.add_argument("--json", action="store_true", help="machine-readable summary")
+
+    p_sq = sub.add_parser("sessions-query", help="find sessions by topic in the built graph")
+    p_sq.add_argument("question", nargs="+", help="free-text topic")
+    p_sq.add_argument("--out", default=default_sidecar, help="sidecar dir")
+    p_sq.add_argument("--project", help="filter by project")
+    p_sq.add_argument("--cluster", type=int, default=None, help="filter by cluster id")
+    p_sq.add_argument("--since", help="ISO date; ignore sessions older than this")
+    p_sq.add_argument("--top", type=int, default=10, help="results to show")
+    p_sq.add_argument("--json", action="store_true", help="machine-readable output")
+
+    p_ssh = sub.add_parser("sessions-show", help="show one session node and its neighbors")
+    p_ssh.add_argument("session_id", help="session id from the graph")
+    p_ssh.add_argument("--out", default=default_sidecar, help="sidecar dir")
+    p_ssh.add_argument("--neighbors", type=int, default=8, help="neighbors to list (default 8)")
+    p_ssh.add_argument("--pretty", action="store_true", help="human-readable output (default: JSON)")
+
+    p_sc = sub.add_parser("sessions-clusters", help="list clusters with terms and exemplars")
+    p_sc.add_argument("--out", default=default_sidecar, help="sidecar dir")
+    p_sc.add_argument("--unnamed", action="store_true", help="only clusters without a name")
+    p_sc.add_argument("--json", action="store_true", help="machine-readable output")
+
+    p_sn = sub.add_parser("sessions-name", help="apply cluster names (stdin JSON or inline)")
+    p_sn.add_argument("--out", default=default_sidecar, help="sidecar dir")
+    p_sn.add_argument("--from", dest="from_file", default=None,
+                      help="JSON file (or '-' for stdin) with [{id,name,summary}]")
+    p_sn.add_argument("--id", help="inline single-cluster id")
+    p_sn.add_argument("--name", help="inline single-cluster name")
+    p_sn.add_argument("--summary", help="inline single-cluster summary")
+
     return parser
 
 
@@ -513,6 +735,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         "context-pack": _cmd_context_pack,
         "graph": _cmd_graph,
         "graph-query": _cmd_graph_query,
+        "sessions-build": _cmd_sessions_build,
+        "sessions-query": _cmd_sessions_query,
+        "sessions-show": _cmd_sessions_show,
+        "sessions-clusters": _cmd_sessions_clusters,
+        "sessions-name": _cmd_sessions_name,
     }
     handler = handlers.get(args.command)
     if handler is None:
