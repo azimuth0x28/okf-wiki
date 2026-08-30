@@ -1,0 +1,6 @@
+{"role": "user", "content": "We need to ship atlas-search 1.4.2 today. Walk me through the rollout plan.", "timestamp": "2026-08-12T09:14:00Z"}
+{"role": "assistant", "content": "Use the blue-green path: build the image, deploy the green pool alongside blue, hold traffic on blue until the green pool passes readiness, then canary 5% -> 25% -> 100%. Keep the blue pool warm for 30 minutes after the switch so rollback is a routing change, not a redeploy.", "timestamp": "2026-08-12T09:15:30Z"}
+{"role": "user", "content": "What gates do we check between canary steps?", "timestamp": "2026-08-12T09:16:10Z"}
+{"role": "assistant", "content": "Three gates per step: error rate below 0.1%, p99 latency within 10% of the blue baseline, and no crash-looping pods. If any gate fails, pin traffic back to blue and page the on-call before touching the green pool again.", "timestamp": "2026-08-12T09:17:05Z"}
+{"role": "user", "content": "And if the green pool never becomes ready?", "timestamp": "2026-08-12T09:18:00Z"}
+{"role": "assistant", "content": "Readiness failures are almost always resource sizing: check OOMKilled events first, then liveness probe timeouts. Compare the new version's memory profile against the old one before assuming a code defect - index cache changes between versions are the usual culprit.", "timestamp": "2026-08-12T09:19:20Z"}

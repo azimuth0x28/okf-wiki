@@ -1,0 +1,86 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 1615 >>
+stream
+BT
+/F1 16 Tf
+72 720 Td
+(Knowledge Graphs in Production) Tj
+/F1 10 Tf
+0 -28 Td
+() Tj
+0 -13 Td
+(1. Entity Resolution at Scale) Tj
+0 -13 Td
+(Production knowledge graphs ingest records from dozens of upstream) Tj
+0 -13 Td
+(systems. Entity resolution merges duplicate nodes that describe the) Tj
+0 -13 Td
+(same real-world object. In our deployment the resolver runs as a) Tj
+0 -13 Td
+(streaming job: blocking keys candidate pairs, a similarity model) Tj
+0 -13 Td
+(scores them, and merges above 0.92 are applied automatically while) Tj
+0 -13 Td
+(the 0.75-0.92 band is queued for human review.) Tj
+0 -13 Td
+() Tj
+0 -13 Td
+(2. Schema Evolution) Tj
+0 -13 Td
+(Schemas change weekly. Backward-compatible changes \(adding optional) Tj
+0 -13 Td
+(properties, new node types\) ship without migration. Breaking changes) Tj
+0 -13 Td
+(follow a two-phase rollout: a dual-write period of at least two) Tj
+0 -13 Td
+(weeks, then a cutover once read paths are migrated.) Tj
+0 -13 Td
+() Tj
+0 -13 Td
+(3. Operational Lessons) Tj
+0 -13 Td
+(Graph health is monitored through three signals: dangling-edge rate,) Tj
+0 -13 Td
+(entity-merge precision sampled weekly, and query latency at the 99th) Tj
+0 -13 Td
+(percentile. Incremental materialization keeps the serving store) Tj
+0 -13 Td
+(fresh within five minutes of an upstream write; full rebuilds run) Tj
+0 -13 Td
+(monthly and are validated against the incremental store before) Tj
+0 -13 Td
+(swap. The most expensive incident traced back to a silent schema) Tj
+0 -13 Td
+(drift between writer and reader versions, which is why dual-write) Tj
+0 -13 Td
+(windows are now mandatory.) Tj
+0 -13 Td
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1978
+%%EOF

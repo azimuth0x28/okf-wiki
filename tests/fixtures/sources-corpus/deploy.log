@@ -1,0 +1,10 @@
+2026-08-14T10:02:11Z INFO  deploy: build atlas-search@1.4.2 started
+2026-08-14T10:05:47Z INFO  deploy: image pushed sha256:9f2c41ab
+2026-08-14T10:06:02Z INFO  deploy: blue-green switch initiated (blue=1.4.1 green=1.4.2)
+2026-08-14T10:07:33Z ERROR health: green pool readiness failing: 3/12 pods OOMKilled
+2026-08-14T10:07:40Z WARN  deploy: traffic held at 100% on blue pool
+2026-08-14T10:09:15Z INFO  deploy: root cause: default heap 512m too small for new index cache in 1.4.2
+2026-08-14T10:11:48Z INFO  deploy: green pool recreated with heap=1g memory_limit=2Gi
+2026-08-14T10:13:05Z INFO  health: green pool 12/12 ready
+2026-08-14T10:14:22Z INFO  deploy: canary 5% -> 25% -> 100% complete, error rate 0.02%
+2026-08-14T10:15:00Z INFO  deploy: blue pool drained, release 1.4.2 stable

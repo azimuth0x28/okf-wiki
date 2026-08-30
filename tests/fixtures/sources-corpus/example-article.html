@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observability for Event-Driven Architectures — Example Weekly</title>
+<meta name="saved-from" content="https://example-weekly.example/observability-event-driven">
+<meta name="saved-at" content="2026-08-20">
+<style>body{font-family:Georgia,serif;max-width:42em;margin:2em auto;line-height:1.6}h1{font-size:1.6em}</style>
+</head>
+<body>
+<article>
+<h1>Observability for Event-Driven Architectures</h1>
+<p><em>Example Weekly — engineering practice column. Saved offline snapshot.</em></p>
+<p>Event-driven systems fail in the gaps between services, so the unit of
+observability is the event's journey, not any single process. Teams that
+instrument only service-local metrics discover incidents through customer
+reports; teams that trace the event corridor see the same incidents as a
+latency spike on one hop.</p>
+<p>Three practices separate mature setups from the rest. First, propagate a
+correlation identifier end to end — producer, broker, consumer — so any
+message can be followed across hops. Second, budget cardinality
+deliberately: per-tenant labels are useful, per-message labels are a
+metrics-backend outage waiting to happen. Third, alert on consumer lag
+trends rather than absolute thresholds; a queue that drains in five
+minutes every morning is normal, and the same queue draining in fifty is
+an incident even when the absolute depth looks small.</p>
+<p>The column's recurring conclusion: the broker is part of the observable
+system. Broker-side metrics (partition skew, redelivery counts,
+dead-letter depth) belong on the same dashboards as service metrics, or
+the corridor view stays blind in exactly the place failures concentrate.</p>
+</article>
+</body>
+</html>
