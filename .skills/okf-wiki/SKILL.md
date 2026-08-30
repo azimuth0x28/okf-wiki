@@ -237,7 +237,7 @@ tags: [okf, format]
 generated:
   by: claude/2.5.0                 # producer actor: <producer>/<version>; fallback okf-wiki/<version>
   at: 2026-08-30T12:00:00Z
-status: draft                      # draft|stable|deprecated; transitions to stable/deprecated and verified: entries are human:<id> only
+status: draft                      # draft|stable|deprecated; promotion to stable and verified: entries are human:<id> only (agent deprecation via staged superseded_by — see Lifecycle)
 stale_after: 2026-11-28T12:00:00Z  # = updated + 90d, recomputed on every write
 sources:                           # v0.2 list; resource is required in each entry
   - resource: "https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"
