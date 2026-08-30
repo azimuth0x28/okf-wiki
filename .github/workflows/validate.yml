@@ -39,3 +39,44 @@ jobs:
         run: |
           bash scripts/roundtrip.sh tests/fixtures/mini-bundle
         # Exit 0 expected — every page's frontmatter survives parse → re-emit → parse.
+
+  test-okf-wiki:
+    name: Python ${{ matrix.python }} — pytest + doctor smoke
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install package (server extra installs on both legs; mcp is py3.10+ only)
+        run: |
+          uv venv
+          uv pip install -e '.[server]' pytest
+        # Exit 0 expected — stdlib-core install works on 3.9; the mcp marker
+        # (python_version >= '3.10') keeps that dependency off the 3.9 leg.
+
+      - name: Pytest — full suite
+        run: |
+          .venv/bin/python -m pytest tests/ -q
+        # Exit 0 expected — server tests self-skip when fastapi is absent.
+
+      - name: Doctor smoke — tmp bundle must validate
+        run: |
+          smoke="$(mktemp -d)"
+          printf -- '---\nokf_version: "0.2"\n---\n\n# Smoke Bundle\n' > "$smoke/index.md"
+          mkdir -p "$smoke/config/okf-wiki"
+          printf 'OKF_BUNDLE_PATH=%s\n' "$smoke" > "$smoke/config/okf-wiki/config"
+          XDG_CONFIG_HOME="$smoke/config" .venv/bin/okf-wiki doctor
+        # Exit 0 expected — doctor resolves the global config and validates the bundle root.
+
+      - name: Docker build smoke
+        if: matrix.python == '3.12'
+        run: |
+          docker build --build-arg VERSION=0.0.0.dev0 -t okf-wiki-smoke .
+        # Exit 0 expected — image builds; CI checkout carries .git so hatch-vcs
+        # resolves a real version when tags exist, the build-arg covers the rest.

@@ -5,6 +5,9 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
+# Server tests need the [server] extra; a bare (stdlib-core) install skips them.
+pytest.importorskip("fastapi")
+
 from okf_wiki.server import create_app
 
 BUNDLE_INDEX = '---\nokf_version: "0.2"\n---\n\n# Test Bundle\n'
