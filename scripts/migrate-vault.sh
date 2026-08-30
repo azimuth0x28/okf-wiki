@@ -61,7 +61,8 @@ while [[ $# -gt 0 ]]; do
       echo "  <vault>.bak-<ts>/         Backup of the original vault"
       echo "  <vault>.migrated-<ts>/    The migrated OKF v0.2 bundle"
       echo ""
-      echo "Idempotent: re-running on an already-migrated bundle produces zero changes."
+      echo "Idempotent: re-running on an already-migrated bundle leaves the bundle"
+      echo "content byte-identical (a fresh backup + output directory are still created)."
       exit 0
       ;;
     -*) die "Unknown option: $1. Use --help for usage." ;;
@@ -90,9 +91,17 @@ if $DRY_RUN; then
   info "DRY RUN mode — inventory + transform plan only, no migration writes"
 fi
 
-# Create working copy for migration
-info "Creating working copy at $OUTPUT_DIR"
-cp -a "$VAULT" "$OUTPUT_DIR"
+# Dry-run inventories the original vault directly — no working copy is created
+INVENTORY_DIR="$OUTPUT_DIR"
+if $DRY_RUN; then
+  INVENTORY_DIR="$VAULT"
+else
+  # Create working copy for migration
+  info "Creating working copy at $OUTPUT_DIR"
+  cp -a "$VAULT" "$OUTPUT_DIR"
+  # A vault that is itself a git repo must not carry .git into the bundle
+  rm -rf "$OUTPUT_DIR/.git"
+fi
 
 # ============================================================================
 # Stage 2: INVENTORY
@@ -105,7 +114,7 @@ OUT_OF_SCOPE=()
 V01_PAGES=()
 PAGE_MAP_FILE="$(mktemp)"
 
-cd "$OUTPUT_DIR"
+cd "$INVENTORY_DIR"
 
 while IFS= read -r -d '' file; do
   rel="${file#./}"
@@ -151,8 +160,8 @@ echo ""
 
 # Count wikilinks before migration
 WIKILINK_COUNT_BEFORE=0
-for page in "${KNOWLEDGE_PAGES[@]}"; do
-  count=$(grep -c '\[\[' "$OUTPUT_DIR/$page" 2>/dev/null || true)
+for page in ${KNOWLEDGE_PAGES[@]+"${KNOWLEDGE_PAGES[@]}"}; do
+  count=$(grep -c '\[\[' "$INVENTORY_DIR/$page" 2>/dev/null || true)
   WIKILINK_COUNT_BEFORE=$((WIKILINK_COUNT_BEFORE + ${count:-0}))
 done
 detail "Wikilinks before migration: $WIKILINK_COUNT_BEFORE"
@@ -161,10 +170,10 @@ if $DRY_RUN; then
   echo ""
   info "DRY RUN — transform plan (no writes to output)"
   echo ""
-  for page in "${KNOWLEDGE_PAGES[@]}"; do
+  for page in ${KNOWLEDGE_PAGES[@]+"${KNOWLEDGE_PAGES[@]}"}; do
     detail "Would transform: $page"
   done
-  for art in "${OBSIDIAN_ARTIFACTS[@]}"; do
+  for art in ${OBSIDIAN_ARTIFACTS[@]+"${OBSIDIAN_ARTIFACTS[@]}"}; do
     detail "Would archive:   $art → _archives/obsidian/"
   done
   echo ""
@@ -180,8 +189,8 @@ info "Stage 3-5: Frontmatter Transform + Wikilink Conversion + v0.1 Upgrade"
 
 export MIGRATE_OUTPUT_DIR="$OUTPUT_DIR"
 export MIGRATE_PAGE_MAP="$PAGE_MAP_FILE"
-export MIGRATE_V01_PAGES="$(printf '%s\n' "${V01_PAGES[@]}")"
-export MIGRATE_KNOWLEDGE_PAGES="$(printf '%s\n' "${KNOWLEDGE_PAGES[@]}")"
+export MIGRATE_V01_PAGES="$(printf '%s\n' ${V01_PAGES[@]+"${V01_PAGES[@]}"})"
+export MIGRATE_KNOWLEDGE_PAGES="$(printf '%s\n' ${KNOWLEDGE_PAGES[@]+"${KNOWLEDGE_PAGES[@]}"})"
 export MIGRATE_STATS_FILE="$(mktemp)"
 
 python3 << 'PYEOF'
@@ -234,6 +243,9 @@ def parse_frontmatter(text):
 def get_fm_field(fm_lines, field):
     """Get the value of a simple top-level field from frontmatter lines."""
     for line in fm_lines:
+        # Only match top-level fields: line must NOT start with whitespace
+        if line and line[0] in (' ', '\t'):
+            continue
         stripped = line.strip()
         if stripped.startswith(field + ':'):
             val = stripped[len(field)+1:].strip()
@@ -280,7 +292,7 @@ def compute_stale_after(updated_str):
     try:
         updated_str = updated_str.strip().strip('"').strip("'")
         dt = datetime.fromisoformat(updated_str.replace('Z', '+00:00'))
-        stale = dt + timedelta(days=90)
+        stale = (dt + timedelta(days=90)).astimezone(timezone.utc)
         return stale.strftime('%Y-%m-%dT%H:%M:%SZ')
     except (ValueError, AttributeError):
         return None
@@ -347,9 +359,8 @@ def transform_frontmatter(fm_lines, filepath):
                 # lifecycle_reason is already passed through from original frontmatter
             elif lc_val == 'archived':
                 result.append('status: deprecated')
-                sup = get_fm_field(fm_lines, 'superseded_by')
-                if sup:
-                    append_fields.append('superseded_by: ' + sup)
+                # superseded_by passes through verbatim from the original
+                # frontmatter — re-appending it here would duplicate the key
             else:
                 result.append('status: ' + lc_val)
 
@@ -505,8 +516,21 @@ def convert_wikilinks(text, source_relpath):
             target = inner.strip()
             display = target
 
+        # Split heading fragment ([[page#section]]) — resolve the base page,
+        # then re-append the fragment to the resolved relative link
+        fragment = ''
+        if '#' in target:
+            target, fragment = target.split('#', 1)
+            target = target.strip()
+            fragment = fragment.strip()
+
         # Strip .md extension if present
         clean_target = target[:-3] if target.endswith('.md') else target
+
+        def emit_link(rel):
+            link = rel + ('#' + fragment if fragment else '')
+            # Percent-encode spaces so filenames with spaces produce valid links
+            return '[' + display + '](' + link.replace(' ', '%20') + ')'
 
         # Path-based wikilink (contains /) -> always convert to link
         if '/' in clean_target:
@@ -522,7 +546,7 @@ def convert_wikilinks(text, source_relpath):
                 rel = './' + rel
             forward_ref += 1
             converted += 1
-            return '[' + display + '](' + rel + ')'
+            return emit_link(rel)
 
         # Bare-title wikilink -> look up in page_map
         basename = clean_target
@@ -538,9 +562,9 @@ def convert_wikilinks(text, source_relpath):
             if not rel.startswith('.'):
                 rel = './' + rel
             converted += 1
-            return '[' + display + '](' + rel + ')'
+            return emit_link(rel)
 
-        # Unmatched bare-title -> plain text
+        # Unmatched bare-title -> plain text (display keeps any #fragment)
         unmatched += 1
         return display
 
@@ -589,7 +613,6 @@ def upgrade_v01_body(text):
 # MAIN TRANSFORM LOOP
 # ========================================================================
 
-now_iso = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 per_file_decisions = []
 
 for page_rel in knowledge_pages:
@@ -715,7 +738,7 @@ fi
 # 6b. Move Obsidian artifacts -> _archives/obsidian/
 if [[ ${#OBSIDIAN_ARTIFACTS[@]} -gt 0 ]]; then
   mkdir -p "_archives/obsidian"
-  for art in "${OBSIDIAN_ARTIFACTS[@]}"; do
+  for art in ${OBSIDIAN_ARTIFACTS[@]+"${OBSIDIAN_ARTIFACTS[@]}"}; do
     if [[ -f "$art" || -d "$art" ]]; then
       art_dir=$(dirname "$art")
       mkdir -p "_archives/obsidian/$art_dir"
@@ -735,9 +758,9 @@ for dir in concepts entities skills references synthesis journal projects; do
       rel="${page#./}"
       fname=$(basename "$page")
       [[ "$fname" == "index.md" ]] && continue
-      title=$(head -20 "$page" | grep -E "^title:" | head -1 | sed 's/^title:\s*//' | tr -d '"' | tr -d "'" | xargs)
+      title=$(head -20 "$page" | grep -E "^title:" | head -1 | sed 's/^title:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs)
       [[ -z "$title" ]] && title="${fname%.md}"
-      desc=$(head -20 "$page" | grep -E "^description:" | head -1 | sed 's/^description:\s*//' | tr -d '"' | tr -d "'" | xargs)
+      desc=$(head -20 "$page" | grep -E "^description:" | head -1 | sed 's/^description:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs)
       if [[ -n "$desc" ]]; then
         entries+=("- [$title](./$fname) — $desc")
       else
@@ -748,7 +771,7 @@ for dir in concepts entities skills references synthesis journal projects; do
     if [[ ${#entries[@]} -gt 0 ]]; then
       {
         printf "# %s\n\n" "${dir^}"
-        for entry in "${entries[@]}"; do
+        for entry in ${entries[@]+"${entries[@]}"}; do
           printf "%s\n" "$entry"
         done
       } > "$dir/index.md"
@@ -757,100 +780,119 @@ for dir in concepts entities skills references synthesis journal projects; do
   fi
 done
 
-# 6d. Update root index.md
-info "  Updating root index.md..."
-{
-  echo "---"
-  echo "okf_version: \"0.2\""
-  echo "---"
-  echo ""
-  echo "# Migrated Bundle"
-  echo ""
-  echo "Migrated from Obsidian vault on $(date -u +%Y-%m-%dT%H:%M:%SZ)."
-  echo ""
-  for dir in concepts entities skills references synthesis journal projects; do
-    if [[ -d "$dir" ]]; then
-      echo "- [${dir^}](./${dir}/index.md)"
-    fi
-  done
-} > "index.md"
-ok "Updated root index.md"
-
-# 6e. Update/create log.md
-info "  Updating log.md..."
+# Extract transform stats (drives service-file no-op detection + the report)
 V01_COUNT=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('v01_upgraded',0))" 2>/dev/null || echo 0)
 WL_COUNT=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('wikilinks_converted',0))" 2>/dev/null || echo 0)
-
-LOG_ENTRY="## $(date -u +%Y-%m-%d)
-- MIGRATE vault=\"$VAULT\" pages=${#KNOWLEDGE_PAGES[@]} v0.1_upgraded=$V01_COUNT wikilinks_converted=$WL_COUNT"
-
-if [[ -f "log.md" ]]; then
-  tmp_log=$(mktemp)
-  head -1 "log.md" > "$tmp_log"
-  echo "" >> "$tmp_log"
-  echo "$LOG_ENTRY" >> "$tmp_log"
-  echo "" >> "$tmp_log"
-  tail -n +2 "log.md" >> "$tmp_log"
-  mv "$tmp_log" "log.md"
-else
-  {
-    echo "# Log"
-    echo ""
-    echo "$LOG_ENTRY"
-  } > "log.md"
-fi
-ok "Updated log.md"
-
-# 6f. Write migration report
-info "  Writing migration report..."
-mkdir -p "_archives"
 WL_UNMATCHED=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('wikilinks_unmatched',0))" 2>/dev/null || echo 0)
 WL_FWD=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('wikilinks_forward_ref',0))" 2>/dev/null || echo 0)
 PG_TRANS=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('pages_transformed',0))" 2>/dev/null || echo 0)
 PG_SKIP=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('pages_skipped',0))" 2>/dev/null || echo 0)
 FM_ERR=$(echo "$TRANSFORM_STATS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('frontmatter_errors',0))" 2>/dev/null || echo 0)
 
-{
-  echo "# Migration Report"
-  echo ""
-  echo "**Source vault:** $VAULT"
-  echo "**Migration date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "**Output bundle:** $OUTPUT_DIR"
-  echo ""
-  echo "## Inventory"
-  echo ""
-  echo "| Class | Count |"
-  echo "|---|---|"
-  echo "| Knowledge pages | ${#KNOWLEDGE_PAGES[@]} |"
-  echo "| Obsidian artifacts | ${#OBSIDIAN_ARTIFACTS[@]} |"
-  echo "| Out-of-scope files | ${#OUT_OF_SCOPE[@]} |"
-  echo "| v0.1 legacy pages | ${#V01_PAGES[@]} |"
-  echo ""
-  echo "## Wikilink Conversion"
-  echo ""
-  echo "| Metric | Count |"
-  echo "|---|---|"
-  echo "| Wikilinks before migration | $WIKILINK_COUNT_BEFORE |"
-  echo "| Converted to markdown links | $WL_COUNT |"
-  echo "| Unmatched -> plain text | $WL_UNMATCHED |"
-  echo "| Forward references preserved | $WL_FWD |"
-  echo ""
-  echo "## Frontmatter Transforms"
-  echo ""
-  echo "| Metric | Count |"
-  echo "|---|---|"
-  echo "| Pages transformed | $PG_TRANS |"
-  echo "| Pages skipped (already OKF) | $PG_SKIP |"
-  echo "| v0.1 pages upgraded | $V01_COUNT |"
-  echo "| Frontmatter errors | $FM_ERR |"
-  echo ""
-  echo "## Obsidian Artifacts Archived"
-  echo ""
-  for art in "${OBSIDIAN_ARTIFACTS[@]}"; do
-    echo "- \`$art\` -> \`_archives/obsidian/$art\`"
-  done
-} > "_archives/migration-report.md"
-ok "Wrote _archives/migration-report.md"
+# No-op re-run signal: nothing was transformed, linked, or upgraded this pass.
+# Service files keep their existing content so a re-run is zero-diff at bundle level.
+NO_TRANSFORM=false
+if [[ "$PG_TRANS" == "0" && "$WL_COUNT" == "0" && "$V01_COUNT" == "0" ]]; then
+  NO_TRANSFORM=true
+fi
+
+# 6d. Update root index.md
+if [[ "$NO_TRANSFORM" == true && -f "index.md" ]] && grep -q 'okf_version: "0.2"' "index.md"; then
+  info "  Root index.md already migrated — leaving unchanged (no-op re-run)"
+else
+  info "  Updating root index.md..."
+  {
+    echo "---"
+    echo "okf_version: \"0.2\""
+    echo "---"
+    echo ""
+    echo "# Migrated Bundle"
+    echo ""
+    echo "Migrated from Obsidian vault on $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+    echo ""
+    for dir in concepts entities skills references synthesis journal projects; do
+      if [[ -d "$dir" ]]; then
+        echo "- [${dir^}](./${dir}/index.md)"
+      fi
+    done
+  } > "index.md"
+  ok "Updated root index.md"
+fi
+
+# 6e. Update/create log.md
+if [[ "$NO_TRANSFORM" == true && -f "log.md" ]]; then
+  info "  log.md already records this state — leaving unchanged (no-op re-run)"
+else
+  info "  Updating log.md..."
+  LOG_ENTRY="## $(date -u +%Y-%m-%d)
+- MIGRATE vault=\"$VAULT\" pages=${#KNOWLEDGE_PAGES[@]} v0.1_upgraded=$V01_COUNT wikilinks_converted=$WL_COUNT"
+
+  if [[ -f "log.md" ]]; then
+    tmp_log=$(mktemp)
+    head -1 "log.md" > "$tmp_log"
+    echo "" >> "$tmp_log"
+    echo "$LOG_ENTRY" >> "$tmp_log"
+    echo "" >> "$tmp_log"
+    tail -n +2 "log.md" >> "$tmp_log"
+    mv "$tmp_log" "log.md"
+  else
+    {
+      echo "# Log"
+      echo ""
+      echo "$LOG_ENTRY"
+    } > "log.md"
+  fi
+  ok "Updated log.md"
+fi
+
+# 6f. Write migration report
+if [[ "$NO_TRANSFORM" == true && -f "_archives/migration-report.md" ]]; then
+  info "  Migration report already reflects this state — leaving unchanged (no-op re-run)"
+else
+  info "  Writing migration report..."
+  mkdir -p "_archives"
+  {
+    echo "# Migration Report"
+    echo ""
+    echo "**Source vault:** $VAULT"
+    echo "**Migration date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "**Output bundle:** $OUTPUT_DIR"
+    echo ""
+    echo "## Inventory"
+    echo ""
+    echo "| Class | Count |"
+    echo "|---|---|"
+    echo "| Knowledge pages | ${#KNOWLEDGE_PAGES[@]} |"
+    echo "| Obsidian artifacts | ${#OBSIDIAN_ARTIFACTS[@]} |"
+    echo "| Out-of-scope files | ${#OUT_OF_SCOPE[@]} |"
+    echo "| v0.1 legacy pages | ${#V01_PAGES[@]} |"
+    echo ""
+    echo "## Wikilink Conversion"
+    echo ""
+    echo "| Metric | Count |"
+    echo "|---|---|"
+    echo "| Wikilinks before migration | $WIKILINK_COUNT_BEFORE |"
+    echo "| Converted to markdown links | $WL_COUNT |"
+    echo "| Unmatched -> plain text | $WL_UNMATCHED |"
+    echo "| Forward references preserved | $WL_FWD |"
+    echo ""
+    echo "## Frontmatter Transforms"
+    echo ""
+    echo "| Metric | Count |"
+    echo "|---|---|"
+    echo "| Pages transformed | $PG_TRANS |"
+    echo "| Pages skipped (already OKF) | $PG_SKIP |"
+    echo "| v0.1 pages upgraded | $V01_COUNT |"
+    echo "| Frontmatter errors | $FM_ERR |"
+    echo ""
+    echo "## Obsidian Artifacts Archived"
+    echo ""
+    for art in ${OBSIDIAN_ARTIFACTS[@]+"${OBSIDIAN_ARTIFACTS[@]}"}; do
+      echo "- \`$art\` -> \`_archives/obsidian/$art\`"
+    done
+  } > "_archives/migration-report.md"
+  ok "Wrote _archives/migration-report.md"
+fi
 
 cd - > /dev/null
 
@@ -889,7 +931,7 @@ else
 fi
 
 # 7c. Count markdown links after migration
-LINK_COUNT_AFTER=$(grep -r '\[.*\](.*\.md)' "$OUTPUT_DIR" --include="*.md" | grep -v '_staging/' | grep -v '_archives/' | grep -v '_cache/' | wc -l || echo 0)
+LINK_COUNT_AFTER=$(grep -r '\[.*\](.*\.md)' "$OUTPUT_DIR" --include="*.md" | grep -v '_staging/' | grep -v '_archives/' | grep -v '_cache/' | wc -l || true)
 detail "Markdown links after migration: $LINK_COUNT_AFTER"
 
 # ============================================================================
@@ -907,4 +949,5 @@ if $VERIFY_OK; then
   ok "All checks passed"
 else
   warn "Some checks failed — review output above"
+  exit 1
 fi
