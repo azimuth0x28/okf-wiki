@@ -1,0 +1,22 @@
+/* Obsidian CSS snippet — migrated as artifact during vault→bundle conversion */
+/* This file is an Obsidian-specific styling artifact, not OKF knowledge content. */
+
+.cm-strong {
+  font-weight: 700;
+  color: var(--text-accent);
+}
+
+.cm-em {
+  font-style: italic;
+}
+
+.cm-link {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+/* Callout styling */
+.callout[data-callout="info"] {
+  --callout-color: 100, 149, 237;
+  background-color: rgba(var(--callout-color), 0.1);
+}

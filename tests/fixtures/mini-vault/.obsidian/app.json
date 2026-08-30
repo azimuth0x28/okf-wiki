@@ -1,0 +1,12 @@
+{
+  "vaultConfig": {
+    "theme": "default",
+    "accentColor": "#7f6df2",
+    "showLineNumber": true,
+    "spellcheck": true,
+    "strictLineBreaks": false
+  },
+  "attachmentFolderPath": "attachments",
+  "newLinkFormat": "shortest",
+  "alwaysUpdateLinks": true
+}
