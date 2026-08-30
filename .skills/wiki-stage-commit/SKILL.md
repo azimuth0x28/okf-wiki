@@ -178,7 +178,7 @@ Staging queue: K files remaining
 
 - Staged files use the same page template as live pages — they are ready to land, just awaiting approval. Frontmatter follows the canonical OKF v0.2 template (see `okf-wiki/SKILL.md` §Schema — reference it; don't re-derive the mapping here).
 - Patch files use a human-readable diff format: `## Additions` / `## Deletions` / `## Updated Fields` sections (format defined in `wiki-ingest/SKILL.md`)
-- `index.md`, `log.md`, and `_cache/hot.md` are always updated immediately by write skills (they are low-risk tracking files) — only category pages go through staging
+- Only category pages go through staging. Of the tracking files, `log.md` and `_cache/hot.md` are always updated immediately by write skills (low-risk tracking files); the `index.md` entry for a staged page is added here, at promotion — so the live index never lists a page before it exists
 - `_staging/` is out of OKF conformance scope: staged pages are invisible to `wiki-lint`, `wiki-query`, and any OKF consumer until promoted. The bundle stays portable throughout — promotion is a file move plus tracking updates, with no format conversion ("format not platform")
 - Obsidian (optional viewer) and any other OKF reader only see a page after promotion
 

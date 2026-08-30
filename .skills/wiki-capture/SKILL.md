@@ -9,7 +9,9 @@ description: >
   capture", "capture this finding", "save this bug fix", "save this gotcha", "drop this to raw", "quick
   save to wiki") that drops findings to the `_raw/` staging area in under 60 seconds with no manifest
   or index writes — used by the session-end Stop hook to auto-preserve findings. Accepts inline
-  named-bundle routing like "@research save this" via the shared Config Resolution Protocol.
+  named-bundle routing like "@research save this" via the shared Config Resolution Protocol. Honors
+  WIKI_STAGED_WRITES: when enabled, full-mode pages land in `_staging/` for human promotion via
+  `/wiki-stage-commit` instead of the live bundle.
 ---
 
 # Wiki Capture — Conversation to Bundle Page
@@ -62,7 +64,7 @@ Trigger when invoked as `/wiki-capture --quick`, by "quick capture" / "capture t
 
 Use this mode when a user or stronger authority corrects a claim derived from an immutable conversation, tool result, or other raw source. Never edit or copy the raw source. Resolve config, read the bundle `AGENTS.md`, and update an existing derived page when one owns the claim; otherwise create the smallest owner-compliant derived correction page.
 
-Record exactly one atomic claim pair. `speaker_type` is semantic and must be assessed independently of a serialized message `role` (a tool result may be serialized as `role=user`). Do not include raw transcript excerpts.
+Record exactly one atomic claim pair. `speaker_type` is semantic and must be assessed independently of a serialized message `role` (a tool result may be serialized as `role=user`). Do not include raw transcript excerpts. When `WIKI_STAGED_WRITES=true`, a correction page with no existing owner is staged to `_staging/<category>/` under the same rules as Full Mode (`status: draft`, index entry deferred to promotion, `CORRECTION_STAGED` log line); updates to existing derived pages follow the staged-patch flow in `wiki-ingest/SKILL.md`.
 
 ```yaml
 correction_id: <stable-id>
@@ -102,9 +104,10 @@ After writing the derived correction, link the immutable source to the created/u
 
 ## Before You Start
 
-1. **Resolve config** — follow the Config Resolution Protocol in `okf-wiki/SKILL.md` (inline `@name` override → walk up CWD for `.env` → global config → prompt setup). This gives `OKF_BUNDLE_PATH`.
-2. Read `$OKF_BUNDLE_PATH/index.md` to understand existing bundle content (avoid duplicates)
-3. Read `$OKF_BUNDLE_PATH/_cache/hot.md` if it exists — it gives context on recent activity
+1. **Resolve config** — follow the Config Resolution Protocol in `okf-wiki/SKILL.md` (inline `@name` override → walk up CWD for `.env` → global config → prompt setup). This gives `OKF_BUNDLE_PATH` — and, when set, `WIKI_STAGED_WRITES`.
+2. **Staged-writes check.** If `WIKI_STAGED_WRITES=true`, this capture is a **staged write**: the page from Step 5 goes to `_staging/<category>/<slug>.md` — identical content and frontmatter (`status: draft`, always) — and the `index.md` entry is deferred to promotion, so the live index never lists a page before it exists. `_staging/` is an out-of-scope operational directory (see *Out-of-Scope Convention* in `okf-wiki/SKILL.md`), so staged captures are invisible to `wiki-lint`/`wiki-query` until promoted. The user confirms via `/wiki-stage-commit`. Quick mode is unaffected — `_raw/` is already out of scope. In unstaged mode, continue exactly as written below.
+3. Read `$OKF_BUNDLE_PATH/index.md` to understand existing bundle content (avoid duplicates)
+4. Read `$OKF_BUNDLE_PATH/_cache/hot.md` if it exists — it gives context on recent activity
 
 ## Step 1: Identify What's Worth Preserving
 
@@ -276,6 +279,17 @@ Every page must link to at least 2 existing bundle pages. Search `index.md` befo
 
 ## Step 6: Update Tracking Files
 
+**If `WIKI_STAGED_WRITES=true` (staged write):** skip the `index.md` entry — it is added when the page is promoted by `/wiki-stage-commit`. Update the two immediate tracking files:
+
+**`log.md`** — Append (newest-first under today's date):
+```
+- [TIMESTAMP] CAPTURE_STAGED type=<type> page="_staging/<category>/<slug>.md" title="<title>"
+```
+
+**`_cache/hot.md`** — Update **Recent Activity**: note that a staged capture is awaiting promotion via `/wiki-stage-commit`. Update `updated` timestamp.
+
+**Unstaged (default):**
+
 **`index.md`** — Add the new page under its category section.
 
 **`log.md`** — Append:
@@ -287,7 +301,14 @@ Every page must link to at least 2 existing bundle pages. Search `index.md` befo
 
 ## Step 7: Confirm to User
 
-Report the saved path and title:
+Staged mode (`WIKI_STAGED_WRITES=true`) — the page is waiting for human review:
+```
+Staged to _staging/:
+  _staging/<category>/<slug>.md
+Run /wiki-stage-commit to promote or reject this page.
+```
+
+Unstaged mode — report the saved path and title:
 ```
 Saved to: projects/<name>/synthesis/<slug>.md
 Title: <Title>
@@ -300,7 +321,7 @@ Type: Synthesis
 - [ ] Type classified correctly; target path is in the right folder
 - [ ] Frontmatter complete with type, title, description, tags, generated, sources
 - [ ] At least 2 file-relative links to existing pages
-- [ ] `index.md`, `log.md`, and `_cache/hot.md` updated
+- [ ] `index.md`, `log.md`, and `_cache/hot.md` updated (with `WIKI_STAGED_WRITES=true`: `index.md` deferred to promotion; staged page + `CAPTURE_STAGED` log line instead)
 - [ ] Confirmed save path to user
 
 ## QMD Refresh After Bundle Writes

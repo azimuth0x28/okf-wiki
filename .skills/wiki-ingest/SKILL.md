@@ -406,7 +406,7 @@ For each page in your plan:
   updated: <new ISO timestamp>
   sources: [<new source added>]
   ```
-- `index.md` and `log.md` are always updated immediately (low-risk tracking files). `_cache/hot.md` notes that staged writes are pending.
+- `log.md` is always updated immediately — append a `STAGE`-marked line so the staged write stays auditable while awaiting promotion. `_cache/hot.md` notes that staged writes are pending. The `index.md` entries for staged pages are **deferred to promotion** (`/wiki-stage-commit`) so the live index never lists a page that does not exist yet.
 - When writing staged pages, use the path `_staging/<category>/` — create the directory if it doesn't exist. `_staging/` is an out-of-scope operational directory (see *Out-of-Scope Convention* in `okf-wiki/SKILL.md`), so staged candidates are exempt from OKF conformance until promoted.
 
 **If `WIKI_STAGED_WRITES` is not set or is `false` (default):**
