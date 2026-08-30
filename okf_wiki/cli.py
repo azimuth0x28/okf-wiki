@@ -339,6 +339,41 @@ def _cmd_sync_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_query(args: argparse.Namespace) -> int:
+    from okf_wiki.query import query as run_query
+    from okf_wiki.query import render
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not bundle.is_dir():
+        print(f"error: not a directory: {bundle}", file=sys.stderr)
+        return 1
+    question = " ".join(args.question).strip()
+    result = run_query(bundle, question, top=args.top)
+    print(render(result))
+    return 0 if result["hits"] else 1
+
+
+def _cmd_context_pack(args: argparse.Namespace) -> int:
+    from okf_wiki.context_pack import build_pack
+    from okf_wiki.context_pack import render
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not bundle.is_dir():
+        print(f"error: not a directory: {bundle}", file=sys.stderr)
+        return 1
+    pack = build_pack(bundle, args.topic, budget_tokens=args.budget)
+    print(render(pack))
+    return 0 if pack["pages_included"] else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -397,6 +432,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ss = _add_bundle_sub("sync-setup", "install the post-commit sync hook (recursion-guarded)")
 
+    p_q = _add_bundle_sub("query", "rank pages for a question (index -> description -> excerpt)")
+    p_q.add_argument("question", nargs="+", help="free-text question")
+    p_q.add_argument("--top", type=int, default=3, help="hits to excerpt (default 3)")
+
+    p_cp = _add_bundle_sub("context-pack", "bounded provenance-rich context pack for a topic")
+    p_cp.add_argument("--topic", required=True, help="topic keywords to rank pages by")
+    p_cp.add_argument("--budget", type=int, default=2000, help="token budget (default 2000)")
+
     return parser
 
 
@@ -417,6 +460,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "capture": _cmd_capture,
         "sync": _cmd_sync,
         "sync-setup": _cmd_sync_setup,
+        "query": _cmd_query,
+        "context-pack": _cmd_context_pack,
     }
     handler = handlers.get(args.command)
     if handler is None:
