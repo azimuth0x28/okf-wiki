@@ -278,6 +278,67 @@ def _cmd_batch_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_capture(args: argparse.Namespace) -> int:
+    from okf_wiki.capture import capture
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not bundle.is_dir():
+        print(f"error: not a directory: {bundle}", file=sys.stderr)
+        return 1
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
+    path = capture(
+        bundle,
+        title=args.title,
+        tags=tags,
+        project=args.project,
+        note=args.note,
+        confidence=args.confidence,
+        page_type=args.type,
+        source=args.source,
+    )
+    print(f"Captured: {path}")
+    return 0
+
+
+def _cmd_sync(args: argparse.Namespace) -> int:
+    from okf_wiki.sync import SyncError, sync
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    try:
+        _committed, message = sync(bundle, message=args.message, push=args.push)
+    except SyncError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not args.quiet:
+        print(message)
+    return 0
+
+
+def _cmd_sync_setup(args: argparse.Namespace) -> int:
+    from okf_wiki.sync import SyncError, sync_setup
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    try:
+        hook_path = sync_setup(bundle)
+    except SyncError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Installed post-commit hook: {hook_path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -320,6 +381,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_bp.add_argument("--section", default="sources", choices=["sources", "projects"])
     p_bp.add_argument("--skip", help="comma-separated substrings to skip")
 
+    p_cap = _add_bundle_sub("capture", "write a quick-capture note into _raw/ (A3)")
+    p_cap.add_argument("--title", required=True, help="note title (slug source)")
+    p_cap.add_argument("--tags", help="comma-separated tags")
+    p_cap.add_argument("--project", help="project context recorded in frontmatter")
+    p_cap.add_argument("--note", help="finding text stored in body and description")
+    p_cap.add_argument("--confidence", type=float, default=0.75)
+    p_cap.add_argument("--type", default="Concept", help="OKF page type (default Concept)")
+    p_cap.add_argument("--source", help="explicit sources.resource value")
+
+    p_sy = _add_bundle_sub("sync", "commit pending bundle changes as exactly one commit")
+    p_sy.add_argument("--message", help="override the conventional commit message")
+    p_sy.add_argument("--push", action="store_true", help="push after committing (first remote)")
+    p_sy.add_argument("--quiet", action="store_true", help="suppress the result message")
+
+    p_ss = _add_bundle_sub("sync-setup", "install the post-commit sync hook (recursion-guarded)")
+
     return parser
 
 
@@ -337,6 +414,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         "cache-update": _cmd_cache_update,
         "cache-hash": _cmd_cache_hash,
         "batch-plan": _cmd_batch_plan,
+        "capture": _cmd_capture,
+        "sync": _cmd_sync,
+        "sync-setup": _cmd_sync_setup,
     }
     handler = handlers.get(args.command)
     if handler is None:
