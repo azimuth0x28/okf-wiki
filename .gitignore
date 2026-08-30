@@ -1,0 +1,9 @@
+﻿.DS_Store/
+.vs_code/
+.idea/
+.codegraph/
+.logs/
+.tmp/
+
+node_modules/
+.venv/
