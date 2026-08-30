@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -596,6 +597,62 @@ def _cmd_sessions_name(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ast_extract(args: argparse.Namespace) -> int:
+    from okf_wiki.ast_extractor import extract
+
+    path = Path(args.path).expanduser().resolve()
+    try:
+        result = extract(path)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.pretty:
+        print(json.dumps(result, indent=2))
+    else:
+        print(json.dumps(result))
+    return 0
+
+
+def _cmd_code_understand(args: argparse.Namespace) -> int:
+    from okf_wiki.code_understanding import ProviderError, code_understand
+
+    project = Path(args.project or os.getcwd())
+    try:
+        result = code_understand(
+            project,
+            # "auto" must pass through as None so CODE_UNDERSTANDING_BACKEND can win (flag > env > auto).
+            backend_flag=None if args.backend == "auto" else args.backend,
+            changed=args.changed,
+            since=args.since,
+            max_symbols=args.max_symbols,
+        )
+    except ProviderError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.pretty:
+        print(f"backend: {result['backend']}")
+        print(f"project: {result['project']}")
+        print(f"focus map: {len(result['focus_map'])} symbol(s)")
+        for item in result["focus_map"]:
+            lines = item.get("lines") or []
+            span = str(lines[0]) if lines else ""
+            if len(lines) > 1:
+                span += f"-{lines[-1]}"
+            print(
+                f"  {item.get('rank', '?')}. {item['symbol']} "
+                f"({item['kind']}) {item['file']}:{span} [{item.get('evidence', '')}]"
+            )
+        if result["warnings"]:
+            print("warnings:")
+            for warning in result["warnings"]:
+                print(f"  - {warning}")
+        else:
+            print("warnings: none")
+    else:
+        print(json.dumps(result, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -711,6 +768,45 @@ def build_parser() -> argparse.ArgumentParser:
     p_sn.add_argument("--name", help="inline single-cluster name")
     p_sn.add_argument("--summary", help="inline single-cluster summary")
 
+    ap = sub.add_parser(
+        "ast-extract",
+        help="extract code structure (classes, functions, imports) from a file or directory — no LLM, no API calls",
+    )
+    ap.add_argument("path", help="file or directory to extract from")
+    ap.add_argument("--pretty", action="store_true", help="pretty-print JSON output")
+
+    cdu = sub.add_parser(
+        "code-understand",
+        help="build a ranked code-understanding focus map for a project — CodeGraph when available, builtin AST + rg otherwise",
+    )
+    cdu.add_argument("--project", default=None, help="project directory (defaults to the current directory)")
+    cdu.add_argument(
+        "--backend",
+        choices=["auto", "builtin", "codegraph"],
+        default="auto",
+        help="code-understanding backend (default: auto)",
+    )
+    cdu.add_argument(
+        "--changed",
+        action="append",
+        default=None,
+        metavar="FILE",
+        help="treat FILE as a seed file (repeatable; overrides --since)",
+    )
+    cdu.add_argument(
+        "--since",
+        default=None,
+        metavar="SHA",
+        help="seed files changed since this git ref",
+    )
+    cdu.add_argument(
+        "--max-symbols",
+        type=int,
+        default=50,
+        help="cap the focus map size (default 50)",
+    )
+    cdu.add_argument("--pretty", action="store_true", help="human-readable summary (default: JSON)")
+
     return parser
 
 
@@ -740,6 +836,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "sessions-show": _cmd_sessions_show,
         "sessions-clusters": _cmd_sessions_clusters,
         "sessions-name": _cmd_sessions_name,
+        "ast-extract": _cmd_ast_extract,
+        "code-understand": _cmd_code_understand,
     }
     handler = handlers.get(args.command)
     if handler is None:
