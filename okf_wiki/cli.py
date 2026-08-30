@@ -374,6 +374,48 @@ def _cmd_context_pack(args: argparse.Namespace) -> int:
     return 0 if pack["pages_included"] else 1
 
 
+def _cmd_graph(args: argparse.Namespace) -> int:
+    from okf_wiki.graph import export_graph
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not bundle.is_dir():
+        print(f"error: not a directory: {bundle}", file=sys.stderr)
+        return 1
+    dest = Path(args.out) if args.out else bundle / "_readouts" / "graph"
+    result = export_graph(bundle, dest)
+    print(f"Graph: {result['node_count']} nodes, {result['edge_count']} links (exported_at {result['exported_at']})")
+    for name in ("graph.json", "graph.graphml", "cypher.txt", "postgres.sql", "graph.html"):
+        print(f"  {result['paths'][name]}")
+    return 0
+
+
+def _cmd_graph_query(args: argparse.Namespace) -> int:
+    from okf_wiki.graph import graph_query
+
+    try:
+        bundle = _resolve_bundle(args)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not bundle.is_dir():
+        print(f"error: not a directory: {bundle}", file=sys.stderr)
+        return 1
+    tokens = args.tokens
+    graph_json = Path(args.out) if args.out else None
+    hits = graph_query(bundle, tokens, graph_json=graph_json)
+    if not hits:
+        print(f"No nodes matching all tokens: {' '.join(tokens)}")
+        return 1
+    print(f"Matching nodes: {len(hits)}")
+    for node in hits:
+        print(f"  [{node.get('type', '?')}] {node.get('id', '?')} — {node.get('label', '')}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="okf-wiki",
@@ -440,6 +482,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_cp.add_argument("--topic", required=True, help="topic keywords to rank pages by")
     p_cp.add_argument("--budget", type=int, default=2000, help="token budget (default 2000)")
 
+    p_g = _add_bundle_sub("graph", "export 5 deterministic graph artifacts")
+    p_g.add_argument("--out", default=None, help="destination dir (default <bundle>/_readouts/graph)")
+
+    p_gq = _add_bundle_sub("graph-query", "filter graph nodes by tokens")
+    p_gq.add_argument("--out", default=None, help="path to an existing graph.json (default <bundle>/_readouts/graph/graph.json)")
+    p_gq.add_argument("tokens", nargs="+", help="tokens AND-matched on label/type/tags/description")
+
     return parser
 
 
@@ -462,6 +511,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "sync-setup": _cmd_sync_setup,
         "query": _cmd_query,
         "context-pack": _cmd_context_pack,
+        "graph": _cmd_graph,
+        "graph-query": _cmd_graph_query,
     }
     handler = handlers.get(args.command)
     if handler is None:
