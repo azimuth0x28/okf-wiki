@@ -28,3 +28,7 @@ extensions/brain-capture/*.zip
 .omo/
 .codegraph/
 .logs/
+
+# Python venv + generated version
+.venv/
+okf_wiki/_version.py

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "okf-wiki"
+dynamic = ["version"]
+description = "OKF v0.2 knowledge-bundle CLI — config resolution, lint, trust, cache, batch planning"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "okf-wiki contributors" }]
+keywords = ["okf", "knowledge-base", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Documentation",
+]
+dependencies = []
+
+[project.optional-dependencies]
+ast = ["tree-sitter"]
+graph = ["leidenalg", "igraph"]
+server = ["fastapi", "uvicorn", "mcp; python_version >= '3.10'"]
+
+[project.scripts]
+okf-wiki = "okf_wiki.cli:main"
+
+[project.urls]
+Repository = "https://github.com/azimuth0x28/okf-wiki"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { fallback_version = "0.0.0.dev0" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "okf_wiki/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["okf_wiki"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
