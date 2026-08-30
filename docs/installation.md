@@ -113,6 +113,32 @@ All supported agents can use this syntax after `setup.sh`, because the shared sk
 
 The routing token works with write skills (`@work update wiki`, `@research save this`) and read skills (`wiki-query @personal what do I know about X`).
 
+## CI
+
+The repo includes a GitHub Actions workflow (`.github/workflows/validate.yml`) that checks OKF v0.2 conformance on every push and pull request.
+
+### How it works
+
+The workflow runs two steps using the bundle validator (`scripts/validate.sh`):
+
+1. **Positive fixture** (`tests/fixtures/mini-bundle`) — must pass (exit 0). This confirms the validator accepts a known-good bundle.
+2. **Negative fixture** (`tests/fixtures/non-conformant`) — must fail (exit ≠ 0). If the validator exits 0 here, the CI job itself fails. This "inversion" gate catches regressions where the validator starts accepting invalid bundles.
+
+### Scheduled runs
+
+Set the `LINT_SCHEDULE` repository variable to enable a weekly cron trigger:
+
+```yaml
+schedule:
+  - cron: '0 9 * * 1'  # every Monday at 09:00 UTC
+```
+
+Uncomment the `schedule` block in `validate.yml`, or add it via the GitHub UI under Settings → Actions → Workflows. When `LINT_SCHEDULE` is unset, the workflow runs only on push and pull request events.
+
+### Adding your own bundle
+
+To validate your bundle in CI, add a step that runs `bash scripts/validate.sh <your-bundle-path>` and expects exit 0. The negative-inversion pattern is optional but recommended for any shared validator — it proves the linter still catches errors.
+
 ## Next steps
 
 - [Skills Reference](skills.md): what you can actually ask for

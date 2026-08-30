@@ -1,0 +1,36 @@
+name: OKF Conformance Validation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  # Scheduled lint run — uncomment the schedule block below, or set
+  # LINT_SCHEDULE=weekly in the repository to enable a Monday 09:00 UTC cron.
+  # schedule:
+  #   - cron: '0 9 * * 1'  # every Monday at 09:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Fixture conformance (positive + negative inversion)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Positive fixture — mini-bundle must pass
+        run: |
+          bash scripts/validate.sh tests/fixtures/mini-bundle
+        # Exit 0 expected — the mini-bundle is OKF v0.2 conformant.
+
+      - name: Negative fixture — non-conformant must fail
+        run: |
+          # This step is an "inversion" gate: if validate.sh exits 0 here,
+          # the CI job fails because a known-bad bundle was accepted.
+          if bash scripts/validate.sh tests/fixtures/non-conformant; then
+            echo "::error::validate.sh accepted the non-conformant fixture (expected failure)"
+            exit 1
+          fi
+          echo "Correctly rejected the non-conformant fixture."
