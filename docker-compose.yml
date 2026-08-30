@@ -1,0 +1,12 @@
+services:
+  okf-wiki:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      WIKI_API_KEY: ${WIKI_API_KEY:?set WIKI_API_KEY in .env}
+    volumes:
+      - okf-bundle:/bundle
+    restart: unless-stopped
+
+volumes:
+  okf-bundle:

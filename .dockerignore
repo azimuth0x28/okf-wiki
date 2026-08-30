@@ -1,0 +1,25 @@
+# Build context hygiene: keep the image free of VCS metadata, local state,
+# and anything that could carry secrets.
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
+.ruff_cache
+.codegraph
+.omo
+.tmp
+.tmp-e2e
+uv.lock
+docs
+tests
+extensions
+dist
+build
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.hermes.md
