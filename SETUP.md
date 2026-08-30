@@ -5,7 +5,7 @@ Setup documentation lives in **[docs/installation.md](docs/installation.md)**.
 Quick version:
 
 ```bash
-git clone https://github.com/Ar9av/obsidian-wiki.git okf-wiki
+git clone https://github.com/azimuth0x28/okf-wiki.git okf-wiki
 cd okf-wiki
 bash setup.sh
 ```

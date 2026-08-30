@@ -12,7 +12,7 @@ Two paths in. Both end at the same place: your bundle path in the global config 
 ## Install via git clone
 
 ```bash
-git clone https://github.com/Ar9av/obsidian-wiki.git okf-wiki
+git clone https://github.com/azimuth0x28/okf-wiki.git okf-wiki
 cd okf-wiki
 bash setup.sh
 ```
@@ -58,7 +58,7 @@ The skill list is enumerated dynamically from `.skills/*/` at runtime. Adding or
 The fastest path. No commands required. Give your agent this repo and say:
 
 ```text
-https://github.com/Ar9av/obsidian-wiki: set up my bundle
+https://github.com/azimuth0x28/okf-wiki: set up my bundle
 ```
 
 The agent reads `.skills/wiki-setup/SKILL.md` from the repo, asks where you want your bundle to live, and initializes the full structure: directories, `index.md` with `okf_version: "0.2"`, `log.md`, `_cache/`, `_raw/`, `_meta/taxonomy.md`, `.manifest.json`, `okf-base.yaml`. The skill is the setup guide.
