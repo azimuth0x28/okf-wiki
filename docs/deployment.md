@@ -35,6 +35,50 @@ The server exposes four MCP tools — `memory_search`, `memory_read`,
 `memory_context_pack` — on the streamable HTTP endpoint at `/mcp`. Point an
 MCP-capable agent at `http://host:8080/mcp` with the same bearer key.
 
+Register the server under a short name (`wiki` below) — clients prefix tool
+names with it, so you get `wiki_memory_search` (OpenCode-style) or
+`mcp__wiki__memory_search` (Claude / Cursor-style).
+
+**Claude Code / Claude Desktop / Cursor** (`mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "wiki": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": { "Authorization": "Bearer change-me" }
+    }
+  }
+}
+```
+
+**OpenCode** (global or project config):
+
+```json
+{
+  "mcp": {
+    "wiki": {
+      "type": "remote",
+      "url": "http://localhost:8080/mcp",
+      "headers": { "Authorization": "Bearer change-me" },
+      "enabled": true
+    }
+  }
+}
+```
+
+**Local, no Docker** — for development on the same machine, skip the key
+entirely:
+
+```bash
+WIKI_ALLOW_ANONYMOUS=1 okf-wiki server --port 8080
+```
+
+…then drop the `headers` block from the config above. Without
+`WIKI_ALLOW_ANONYMOUS=1` the server refuses to start without `WIKI_API_KEY`
+(same check in Docker and bare-metal).
+
 ## REST
 
 All data endpoints require `Authorization: Bearer $WIKI_API_KEY`;

@@ -62,13 +62,36 @@ symlinks live in the repo clone). Three ways to close that gap — pick one:
 Three skills are designed to run with any directory as the working directory:
 `wiki-update` (push project knowledge into the bundle), `wiki-query` (ask the
 bundle), and `wiki-context-pack` (bounded context for another agent). The
-project you are in is the *source*; the bundle stays the *destination*:
+project you are in is the *source*; the bundle stays the *destination*.
 
-```text
-Read and follow $OKF_WIKI_REPO/.skills/wiki-update/SKILL.md
-```
+Four ways to give a project's agent access, by how permanent you need it:
 
-or, with user-level skills installed, just say **"update the wiki"**.
+1. **MCP server** — the bundle as tools, zero skills or symlinks. Run
+   `okf-wiki server` for the bundle (see
+   [below](#run-it-as-a-service-mcp--rest)) and add
+   `http://localhost:<port>/mcp` to the agent's MCP settings. Best for
+   read access from an IDE or any MCP-capable agent.
+
+2. **User-level skills** — symlink the three portable skills into
+   `~/.claude/skills/` or `~/.agents/skills/` (one `ln -s` per skill
+   directory). Then just say **"update the wiki"** inside the project. This
+   is the only option where the agent both reads and writes: `wiki-update`
+   distills the project's decisions and patterns into the bundle.
+
+3. **One-off, zero setup** — point the agent at the skill file directly:
+
+   ```text
+   Read and follow /path/to/okf-wiki/.skills/wiki-update/SKILL.md
+   ```
+
+4. **Terminal only** — `okf-wiki query "…"` and `okf-wiki context-pack`
+   resolve the bundle from any directory; useful outside an agent session
+   (shell scripts, CI).
+
+How the bundle is found: the global config names the default; an inline
+`@name` token routes one request to another bundle; a `.env` with
+`OKF_BUNDLE_PATH` inside the project folder pins the project to a specific
+bundle. Details: [Configuration](configuration.md).
 
 ## Skills or CLI?
 

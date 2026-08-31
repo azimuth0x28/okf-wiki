@@ -32,6 +32,7 @@ extensions/brain-capture/*.zip
 # Python venv + generated version
 .venv/
 okf_wiki/_version.py
+uv.lock
 
 # brain-capture e2e scratch
 extensions/brain-capture/host/.tmp-e2e/
