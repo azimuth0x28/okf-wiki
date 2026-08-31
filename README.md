@@ -1,15 +1,8 @@
 # okf-wiki
 
-okf-wiki turns your AI coding agent into a knowledge-base engineer. It is **37 skills**
-(markdown instructions your agent executes directly) plus a small **CLI** for deterministic
-checks. Everything it builds and maintains is an **OKF v0.2 (Open Knowledge Format) bundle** —
-a folder of plain markdown with YAML frontmatter that any agent or human can read, extend,
-and transfer between tools without conversion. No runtime, no API keys, no vendor: the agent
-is the runtime.
+okf-wiki is a knowledge base that lives in your repo: an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog) (OKF v0.2) bundle and a Karpathy-style [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — plain markdown + YAML frontmatter, navigated by `index.md` and file-relative links. No database, no embeddings, no runtime: any agent or human can read, extend, and carry the bundle between tools without conversion.
 
-Derived from [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT) with one
-inversion: **"format not platform."** Portability is the native state of every page from the
-moment it is written, not an export option.
+To grow and maintain that bundle, okf-wiki ships **37 skills** — markdown instructions your AI coding agent executes directly — plus a small **CLI** for deterministic checks (lint, doctor, trust, manifest cache, graph export). No API keys, no vendor: the agent is the runtime.
 
 **The point:** clone the repo, say one sentence to your agent, and you have a knowledge base
 your agent can grow and query from any project.
@@ -131,5 +124,6 @@ Full schema and ingest pipeline → [docs/architecture.md](docs/architecture.md)
 
 ## Attribution & license
 
-okf-wiki is derived from [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT).
+okf-wiki is an independent project. It was founded on [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT) — taken as a good working example of the pattern — with one deliberate inversion: **"format not platform."** Portability is the native state of every page from the moment it is written, and the source of truth is the bundle's markdown, whatever agent or tool maintains it.
+
 Licensed [MIT](LICENSE) — see the LICENSE file for full text.
