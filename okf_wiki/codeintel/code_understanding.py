@@ -5,12 +5,12 @@ project's seed files (changed files, files changed since a git ref, or all
 tracked files) plus the cross-file references around them, ranked by
 importance. Two backends:
 
-- ``builtin`` — regex AST extraction (okf_wiki.ast_extractor) plus
+- ``builtin`` — regex AST extraction (okf_wiki.codeintel.ast_extractor) plus
   ripgrep for cross-file references; zero dependencies. Implemented in
-  okf_wiki.code_understanding_builtin.
+  okf_wiki.codeintel.builtin.
 - ``codegraph`` — the optional codegraph CLI (https://github.com/ar9av/codegraph)
   when installed and explicitly requested (or auto-selected when available).
-  Implemented in okf_wiki.code_understanding_codegraph.
+  Implemented in okf_wiki.codeintel.codegraph.
 
 Backend precedence: explicit flag > CODE_UNDERSTANDING_BACKEND env > 'auto'.
 Only an explicitly selected codegraph backend is validated eagerly
@@ -167,7 +167,7 @@ def _seed_files(
     if tracked is not None:
         return [_rel(project, p) for p in tracked]
     # Not a git repo: all code files discovered by ast_extractor.
-    from okf_wiki.ast_extractor import extract
+    from okf_wiki.codeintel.ast_extractor import extract
 
     data = extract(project)
     return sorted({n["file"] for n in data["nodes"] if n["kind"] in ("class", "function")})
@@ -241,12 +241,12 @@ def code_understand(
     origin_files: set[str] = set(seed_files) if (changed is not None or since is not None) else set()
 
     if mode == "codegraph":
-        from okf_wiki.code_understanding_codegraph import CodeGraphProvider
+        from okf_wiki.codeintel.codegraph import CodeGraphProvider
 
         bin_path = environ.get("CODE_UNDERSTANDING_CODEGRAPH_BIN") or shutil.which("codegraph")
         provider = CodeGraphProvider(bin_path or "", project, proc_env)
     else:
-        from okf_wiki.code_understanding_builtin import BuiltinProvider
+        from okf_wiki.codeintel.builtin import BuiltinProvider
 
         provider = BuiltinProvider(project)
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from okf_wiki.ast_extractor import extract
-from okf_wiki.code_understanding import (
+from okf_wiki.codeintel.ast_extractor import extract
+from okf_wiki.codeintel.code_understanding import (
     ProviderError,
     code_understand,
     index_state,

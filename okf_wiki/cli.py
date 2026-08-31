@@ -425,7 +425,7 @@ def _sidecar_dir(args: argparse.Namespace) -> Path:
 
 
 def _cmd_sessions_build(args: argparse.Namespace) -> int:
-    from okf_wiki.session_graph import HALF_LIFE_DAYS_DEFAULT, build
+    from okf_wiki.sessions.graph import HALF_LIFE_DAYS_DEFAULT, build
 
     claude_dir = Path(args.claude_dir).expanduser()
     if not claude_dir.is_dir():
@@ -457,7 +457,7 @@ def _cmd_sessions_build(args: argparse.Namespace) -> int:
 
 
 def _cmd_sessions_query(args: argparse.Namespace) -> int:
-    from okf_wiki.session_query import query
+    from okf_wiki.sessions.query import query
 
     question = " ".join(args.question)
     out_dir = _sidecar_dir(args)
@@ -500,7 +500,7 @@ def _cmd_sessions_query(args: argparse.Namespace) -> int:
 
 
 def _cmd_sessions_show(args: argparse.Namespace) -> int:
-    from okf_wiki.session_query import show
+    from okf_wiki.sessions.query import show
 
     try:
         result = show(_sidecar_dir(args), args.session_id, neighbors=args.neighbors)
@@ -535,7 +535,7 @@ def _cmd_sessions_show(args: argparse.Namespace) -> int:
 
 
 def _cmd_sessions_clusters(args: argparse.Namespace) -> int:
-    from okf_wiki.session_graph import load_graph
+    from okf_wiki.sessions.graph import load_graph
 
     try:
         _graph, clusters_doc = load_graph(_sidecar_dir(args))
@@ -565,7 +565,7 @@ def _cmd_sessions_clusters(args: argparse.Namespace) -> int:
 
 
 def _cmd_sessions_name(args: argparse.Namespace) -> int:
-    from okf_wiki.session_graph import set_cluster_names
+    from okf_wiki.sessions.graph import set_cluster_names
 
     updates: List[dict] = []
     if args.from_file:
@@ -598,7 +598,7 @@ def _cmd_sessions_name(args: argparse.Namespace) -> int:
 
 
 def _cmd_ast_extract(args: argparse.Namespace) -> int:
-    from okf_wiki.ast_extractor import extract
+    from okf_wiki.codeintel.ast_extractor import extract
 
     path = Path(args.path).expanduser().resolve()
     try:
@@ -614,7 +614,7 @@ def _cmd_ast_extract(args: argparse.Namespace) -> int:
 
 
 def _cmd_code_understand(args: argparse.Namespace) -> int:
-    from okf_wiki.code_understanding import ProviderError, code_understand
+    from okf_wiki.codeintel.code_understanding import ProviderError, code_understand
 
     project = Path(args.project or os.getcwd())
     try:

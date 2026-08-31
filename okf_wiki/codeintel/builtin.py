@@ -1,6 +1,6 @@
 """Builtin focus-map provider: regex AST extraction + ripgrep references.
 
-Zero-dependency backend for okf_wiki.code_understanding. Seeds are the
+Zero-dependency backend for okf_wiki.codeintel.code_understanding. Seeds are the
 class/function symbols ast_extractor finds in the seed files; ripgrep adds
 cross-file reference items (best-effort — a missing rg only degrades output).
 """
@@ -12,7 +12,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from okf_wiki.code_understanding import _item, _SUBPROCESS_TIMEOUT
+from okf_wiki.codeintel.code_understanding import _item, _SUBPROCESS_TIMEOUT
 
 
 class BuiltinProvider:
@@ -26,8 +26,8 @@ class BuiltinProvider:
         max_symbols: int,
         warnings: list[str],
     ) -> list[dict]:
-        from okf_wiki.ast_extractor import extract
-        from okf_wiki.code_understanding import _finalize
+        from okf_wiki.codeintel.ast_extractor import extract
+        from okf_wiki.codeintel.code_understanding import _finalize
 
         data = extract(self.project)
         nodes = data["nodes"]

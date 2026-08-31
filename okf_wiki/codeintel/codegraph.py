@@ -12,7 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from okf_wiki.code_understanding import (
+from okf_wiki.codeintel.code_understanding import (
     _item,
     _rel,
     _SUBPROCESS_TIMEOUT,
@@ -59,8 +59,8 @@ class CodeGraphProvider:
         max_symbols: int,
         warnings: list[str],
     ) -> list[dict]:
-        from okf_wiki.ast_extractor import extract
-        from okf_wiki.code_understanding import _finalize
+        from okf_wiki.codeintel.ast_extractor import extract
+        from okf_wiki.codeintel.code_understanding import _finalize
 
         self.ensure_index()
         data = extract(self.project)

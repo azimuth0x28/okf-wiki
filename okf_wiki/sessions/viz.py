@@ -3,7 +3,7 @@
 Canvas-based rendering with zero CDN dependencies — the page works fully
 offline. Layout is deterministic (golden-angle seeded positions per
 cluster), so the same graph always renders identically. Consumes the
-graph.json / clusters.json shapes produced by :mod:`okf_wiki.session_graph`.
+graph.json / clusters.json shapes produced by :mod:`okf_wiki.sessions.graph`.
 """
 from __future__ import annotations
 
@@ -167,7 +167,7 @@ def render_html(
 
     ``graph`` is the sidecar ``graph.json`` document, ``clusters_doc`` the
     sidecar ``clusters.json``. Both shapes come from
-    :func:`okf_wiki.session_graph.build`. ``out_dir`` is accepted for
+    :func:`okf_wiki.sessions.graph.build`. ``out_dir`` is accepted for
     signature compatibility with the source implementation and ignored —
     the page embeds all data.
     """

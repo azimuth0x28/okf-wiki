@@ -23,8 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from okf_wiki import session_index as si
-from okf_wiki.session_graph import (
+from okf_wiki.sessions import index as si
+from okf_wiki.sessions.graph import (
     HALF_LIFE_DAYS_DEFAULT, age_days, decay, load_docs, load_graph, parse_ts,
 )
 

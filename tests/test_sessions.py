@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from okf_wiki.session_graph import build, load_graph, set_cluster_names
-from okf_wiki.session_query import query, show
-from okf_wiki.session_viz import render_html
+from okf_wiki.sessions.graph import build, load_graph, set_cluster_names
+from okf_wiki.sessions.query import query, show
+from okf_wiki.sessions.viz import render_html
 
 FIXTURE = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "agent-history"
 KW = {"claude_dir": FIXTURE, "min_sim": 0.02}

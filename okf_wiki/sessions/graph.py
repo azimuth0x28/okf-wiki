@@ -28,8 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from okf_wiki import session_index as si
-from okf_wiki import session_sources as ss
+from okf_wiki.sessions import index as si
+from okf_wiki.sessions import sources as ss
 
 HALF_LIFE_DAYS_DEFAULT = 90.0
 DEFAULT_OUT_DIR = "~/.claude/session-brain"
@@ -234,7 +234,7 @@ def _build_clusters(
     now: datetime,
     half_life_days: float,
 ) -> tuple[list[dict], dict[str, int]]:
-    from okf_wiki.session_communities import detect_communities, surprising_connections
+    from okf_wiki.sessions.communities import detect_communities, surprising_connections
 
     adjacency = _weighted_adjacency(edges, index.doc_ids)
     linked = {doc_id for doc_id, targets in adjacency.items() if targets}
@@ -384,7 +384,7 @@ def set_cluster_names(out_dir: Path, updates: list[dict]) -> dict[str, Any]:
 
     graph = _read_json(out_dir / "graph.json", None)
     if graph and (out_dir / "graph.html").exists():
-        from okf_wiki.session_viz import render_html
+        from okf_wiki.sessions.viz import render_html
         (out_dir / "graph.html").write_text(
             render_html(graph, clusters_doc,
                         half_life_days=graph.get("half_life_days", HALF_LIFE_DAYS_DEFAULT),
@@ -536,7 +536,7 @@ def build(
     _write_json(out_dir / "state.json", info["state"])
     save_docs(out_dir / "docs.jsonl", entries)
     if write_html:
-        from okf_wiki.session_viz import render_html
+        from okf_wiki.sessions.viz import render_html
         (out_dir / "graph.html").write_text(
             render_html(graph, clusters_doc, half_life_days=half_life_days,
                         out_dir=out_dir), encoding="utf-8")
@@ -571,7 +571,7 @@ def _write_empty(out_dir: Path, half_life_days: float, now: datetime, write_html
     _write_json(out_dir / "state.json", {"sources": {}, "history": None, "bookmarks": None})
     save_docs(out_dir / "docs.jsonl", {})
     if write_html:
-        from okf_wiki.session_viz import render_html
+        from okf_wiki.sessions.viz import render_html
         (out_dir / "graph.html").write_text(
             render_html(graph, clusters_doc, half_life_days=half_life_days,
                         out_dir=out_dir), encoding="utf-8")
