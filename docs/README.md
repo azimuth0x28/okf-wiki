@@ -7,6 +7,7 @@ conformance validator.
 | Page | Contents |
 |---|---|
 | [installation](./installation.md) | Install and initial setup |
+| [how-to-use](./how-to-use.md) | Practical guide: where to run the agent, bundles, CLI vs skills, MCP |
 | [configuration](./configuration.md) | Config Resolution Protocol, `.env`, `@name` overrides |
 | [architecture](./architecture.md) | OKF v0.2 bundle structure, three-layer model, write protocol |
 | [skills](./skills.md) | Catalog of the 37 skills by category |

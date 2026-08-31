@@ -17,7 +17,7 @@ cd okf-wiki
 bash setup.sh
 ```
 
-`setup.sh` asks for your bundle path, writes the config to `~/.config/okf-wiki/config`, symlinks skills into all your agents, and installs `wiki-update`, `wiki-query`, and `wiki-context-pack` globally so you can use them from any project.
+`setup.sh` asks for your bundle path, writes the config to `~/.config/okf-wiki/config`, and symlinks skills into your agents. The skills `wiki-update`, `wiki-query`, and `wiki-context-pack` work from any project directory: they locate the bundle through config resolution (see [Configuration](configuration.md)).
 
 Then open the project in your agent and say **"set up my bundle"**.
 

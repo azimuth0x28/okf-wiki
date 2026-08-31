@@ -1,101 +1,135 @@
-# What is okf-wiki
+# okf-wiki
 
-okf-wiki is a skill-based framework for building and maintaining knowledge bases where the
-store is natively an **OKF v0.2 (Open Knowledge Format)** bundle. The knowledge base is
-a distributable unit — a directory of markdown files — that any AI agent (Claude, Codex,
-Gemini, Copilot, Cursor, Windsurf, Kiro, OpenClaw, pi, and others) and any human can read,
-extend, and transfer between tools without conversion. Producer and consumer are independent;
-trust and provenance are first-class entities of the format.
+okf-wiki turns your AI coding agent into a knowledge-base engineer. It is **37 skills**
+(markdown instructions your agent executes directly) plus a small **CLI** for deterministic
+checks. Everything it builds and maintains is an **OKF v0.2 (Open Knowledge Format) bundle** —
+a folder of plain markdown with YAML frontmatter that any agent or human can read, extend,
+and transfer between tools without conversion. No runtime, no API keys, no vendor: the agent
+is the runtime.
 
-The framework is derived from Ar9av/obsidian-wiki (MIT) with one key inversion: instead of
-"Obsidian is the IDE," the guiding principle is **"format not platform."** The knowledge you
-compile is portable by design, not as an export option but as the native state of every page
-from the moment it is written.
+Derived from [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT) with one
+inversion: **"format not platform."** Portability is the native state of every page from the
+moment it is written, not an export option.
 
-## Benchmark
+**The point:** clone the repo, say one sentence to your agent, and you have a knowledge base
+your agent can grow and query from any project.
 
-Structural questions — "how is X connected to Y," "which pages hold my bundle together,"
-"what breaks if I delete this" — are where a plain agent is weakest. It has to grep every
-file and reconstruct the link graph by hand every single time.
+## What's in this repo
 
-Same model, same bundle, same questions. The only difference is whether the wiki framework
-was installed:
+| Path | What it is |
+|---|---|
+| `.skills/` | The 37 skills — markdown instructions the agent executes (ingest, query, lint, rebuild…). Each is a folder with a `SKILL.md`. |
+| `okf_wiki/` + `pyproject.toml` | The `okf-wiki` Python CLI — deterministic checks and helpers (lint, doctor, trust, manifest cache, graph export, query ranking). Optional; the skills work without it. Zero runtime dependencies, Python ≥ 3.9. |
+| `setup.sh` | One-shot installer: symlinks skills into Claude Code, Cursor, Windsurf, Pi, Kiro, and generic AGENTS.md agents (Codex, OpenCode, Aider, …); writes the global config. |
+| `AGENTS.md` | The agent entry point. `CLAUDE.md`, `GEMINI.md`, `.hermes.md` are symlinks to it. |
+| `docs/` | Full documentation: installation, skills reference, configuration, architecture. |
 
-| | Plain agent | With obsidian-wiki |
+## Skills vs CLI — read this first
+
+Two different things share similar names, and mixing them up is the #1 confusion:
+
+| | Skills | CLI |
 |---|---|---|
-| **Time to answer** | 81s | **19s** — 4.4× faster |
-| **Correct answers** | 44% | **83%** |
-| **Tool calls used** | 9.9 | **4.6** |
-| **API cost** | $0.202 | $0.208 — unchanged |
+| Examples | `wiki-ingest`, `wiki-query`, `wiki-setup`, `wiki-lint` | `okf-wiki lint`, `okf-wiki doctor`, `okf-wiki cache-update` |
+| What it is | Markdown instructions in `.skills/<name>/SKILL.md` that your **agent** executes | A real binary from the Python package |
+| How to invoke | **Say it to your agent** in chat: *"ingest ~/research"*, *"what do I know about X"* — or `/wiki-ingest` in agents with slash-command support | **Type it in a terminal**: `okf-wiki --help` |
+| Where it comes from | The `.skills/` folder, wired into your agent by `setup.sh` | `okf_wiki/cli.py`, installed with pip |
 
-These numbers were measured on the source project (obsidian-wiki, Claude Sonnet, headless,
-38-page vault). The same performance profile applies to okf-wiki since the core retrieval
-mechanism is identical.
+So `wiki-ingest ~/research` typed in a shell does nothing — that is a sentence for your
+agent. `okf-wiki doctor` typed in a shell works once the CLI is installed.
+
+## Install
+
+### Path A — by hand
+
+```bash
+git clone https://github.com/azimuth0x28/okf-wiki.git
+cd okf-wiki
+bash setup.sh
+```
+
+`setup.sh` creates `.env` from `.env.example`, writes the global config
+(`~/.config/okf-wiki/config`), and symlinks every skill into each supported agent's skills
+directory. Re-running it picks up skills added or removed under `.skills/`.
+
+Then open this project in your agent and say **"set up my bundle"** — the agent asks where
+your bundle should live and initializes the full OKF v0.2 structure.
+
+Optional, for the CLI:
+
+```bash
+pip install -e .        # or: uv pip install -e .
+okf-wiki --help
+```
+
+### Path B — one prompt
+
+Paste this into any coding agent and it does the rest:
+
+```text
+Clone https://github.com/azimuth0x28/okf-wiki, run `bash setup.sh` inside it, then read
+AGENTS.md and .skills/wiki-setup/SKILL.md. Ask me where my bundle should live, initialize
+the OKF v0.2 bundle there, and confirm which skills are now available.
+```
+
+Both paths end at the same place: skills discoverable by your agent, and your bundle path
+in the global config. Per-agent setup matrix, multiple bundles, and `@name` routing →
+[docs/installation.md](docs/installation.md).
+
+> **Next step:** installed — now what? Where to run your agent (repo vs bundle folder),
+> how to address bundles, CLI vs skills, MCP server → [docs/how-to-use.md](docs/how-to-use.md).
+
+## First ten minutes
+
+From any project, say these to your agent (each maps to one skill):
+
+| You say | Skill | What happens |
+|---|---|---|
+| "set up my bundle" | `wiki-setup` | Creates the bundle: `index.md` with `okf_version: "0.2"`, `log.md`, taxonomy, manifest |
+| "ingest ~/research" | `wiki-ingest` | Distills documents, PDFs, chat exports, URLs into cross-linked bundle pages |
+| "what do I know about X" | `wiki-query` | Answers with citations from bundle pages |
+| "update wiki" | `wiki-update` | Syncs the current project's knowledge into the bundle |
+| "audit my bundle" | `wiki-lint` | Finds broken links, orphans, OKF violations |
+
+In a terminal, the CLI covers the deterministic side:
+
+```bash
+okf-wiki doctor          # validate resolved config and bundle shape
+okf-wiki lint <bundle>   # OKF conformance gate (exit 0/1/2) — CI-friendly
+okf-wiki cache-update    # scan sources and update the SHA-256 ingest manifest
+```
+
+Full CLI reference → `okf-wiki --help`. Full skill catalog → [docs/skills.md](docs/skills.md).
 
 ## OKF v0.2 native
 
-okf-wiki writes every page in conformance with OKF v0.2 from the moment of creation. The three
-conformance rules are:
-
-1. Every non-reserved `.md` file has parseable YAML frontmatter.
-2. Every such file has a non-empty `type` field in its frontmatter.
-3. Reserved files (`index.md`, `log.md`) follow their defined structure.
-
-Consumers are required to accept: missing optional fields, unknown `type` values, unknown
-frontmatter keys, broken links, and missing `index.md` files. Extension fields (such as
-`aliases`, `relationships`, `provenance`, `base_confidence`, `tier`, `lifecycle_changed`,
-`updated`, `superseded_by`, and `lifecycle`) are preserved verbatim by any conformant
-consumer — your enriched metadata travels with the bundle.
-
-## Quick start
-
-```bash
-# 1. Install into your agents
-bash setup.sh
-
-# 2. Point at your bundle and initialize if it's new
-export OKF_BUNDLE_PATH=~/my-brain
-okf-wiki setup   # or: wiki-setup skill in your agent
-
-# 3. Ingest knowledge
-wiki-ingest ~/research      # any documents, PDFs, chat exports, URLs
-```
-
-## Skills
-
-okf-wiki ships **37 skills** (adapted from the 40 in the source project: 30 adapted,
-1 rewritten core, 3 transformed, 3 preserved as meta). Three Obsidian-specific skills were
-removed: graph-colorize, wiki-dashboard, and obsidian-layout-adjustment.
-
-Full catalog → **[Skills Reference](docs/skills.md)**
-
-## Bundle anatomy
-
-A complete okf-wiki bundle (OKF v0.2) looks like this:
+Every page conforms to OKF v0.2 from creation: parseable YAML frontmatter with a `type`,
+reserved `index.md`/`log.md` in their defined structure, file-relative links between pages,
+and extension fields (`aliases`, `provenance`, `lifecycle`, …) preserved verbatim by any
+conformant consumer. A bundle looks like:
 
 ```
-<bundle>/                          # git repo recommended as unit of distribution
+<bundle>/                          # a git repo is the unit of distribution
 ├── index.md                       # okf_version: "0.2"; master catalog
-├── log.md                         # Newest-first, ISO-dated entries
-├── AGENTS.md                      # Owner conventions (extends, not an OKF concept)
+├── log.md                         # newest-first ISO-dated entries
 ├── concepts/  entities/  skills/  references/  synthesis/  journal/  projects/
-│   ├── index.md                   # Per-dir, no frontmatter
-│   └── <concept>.md               # OKF v0.2 + extension fields
-├── _raw/  _staging/  _archives/  _readouts/  _meta/  _cache/  # Out of OKF scope
-│   ├── _meta/taxonomy.md
-│   └── _cache/hot.md
-├── _insights.md
-├── .manifest.json                 # Delta-ledger of ingests (SHA-256)
-└── .manifest.lock                 # Advisory lock
+├── _raw/  _staging/  _archives/  _readouts/  _meta/  _cache/   # ops, out of OKF scope
+└── .manifest.json                 # SHA-256 delta ledger of ingests
 ```
 
-Directories prefixed with `_` and dot-files are outside OKF conformance scope and are
-excluded from validation. They contain staging, caching, and operational artifacts.
+Full schema and ingest pipeline → [docs/architecture.md](docs/architecture.md).
 
-## Attribution
+## Docs
 
-okf-wiki is **derived from Ar9av/obsidian-wiki** ([MIT](https://github.com/Ar9av/obsidian-wiki)).
+| Looking for | Go to |
+|---|---|
+| Install paths, supported agents, multiple bundles | [docs/installation.md](docs/installation.md) |
+| Where to run the agent, bundles, CLI vs skills, MCP | [docs/how-to-use.md](docs/how-to-use.md) |
+| Every skill and when to say it | [docs/skills.md](docs/skills.md) |
+| Every config variable | [docs/configuration.md](docs/configuration.md) |
+| Bundle structure, ingest stages, OKF conformance | [docs/architecture.md](docs/architecture.md) |
 
-## License
+## Attribution & license
 
-[MIT](LICENSE) — see LICENSE file for full text.
+okf-wiki is derived from [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT).
+Licensed [MIT](LICENSE) — see the LICENSE file for full text.
